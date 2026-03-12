@@ -4,7 +4,10 @@ Download your entire GoPro cloud library organized by date with rich metadata, l
 
 ## Features
 
+- **Fast parallel downloads**: Uses aiohttp for concurrent downloads (5 simultaneous)
+- **Parallel metadata fetching**: 50 concurrent API calls for speed
 - **Smart folder structure**: `2024-Vietnam-Laos/Feb-Vietnam/26-Hanoi-BikeRide/`
+- **Max resolution selection**: Automatically selects highest available quality
 - **GPS reverse geocoding**: Automatically detects city/country from GPS coordinates
 - **Activity detection**: Tags folders with activities (Bike, Hike, Sunset, etc.)
 - **Per-day metadata.json**: Detailed file metadata for each day
@@ -44,14 +47,22 @@ export GOPRO_USER_ID='your_user_id_here'
 ### 3. Run
 
 ```bash
-# Download to default ./downloads folder
-./download.sh
+# Interactive mode - prompts for download path
+python3 downloader.py
 
-# Download to external drive
+# Download to specific path
+python3 downloader.py /Volumes/H4TB/GoPro
+
+# Download specific date only
+python3 downloader.py --date 2024-03-12
+
+# Show help
+python3 downloader.py --help
+```
+
+Or use the shell wrapper:
+```bash
 ./download.sh /Volumes/H4TB/GoPro
-
-# With path as argument (skips prompt)
-./download.sh /Volumes/MyHDD/GoPro
 ```
 
 ## Folder Structure
@@ -197,28 +208,24 @@ File: GX010099.MP4
 
 ## Commands
 
-### Download All Media
-
 ```bash
-# Interactive - prompts for download path
-./download.sh
+# Show all options
+python3 downloader.py --help
 
-# Direct path
-./download.sh /Volumes/H4TB/GoPro
-```
+# Interactive mode (prompts for path)
+python3 downloader.py
 
-### Retry Failed Downloads
+# Download to specific path
+python3 downloader.py /Volumes/H4TB/GoPro
 
-```bash
+# Download specific date only
+python3 downloader.py /Volumes/H4TB/GoPro --date 2024-03-12
+
 # Retry specific media IDs
-./download.sh --retry P3zD0D8JyW4Og,X7yK2L9MnQ3Rp
+python3 downloader.py --retry P3zD0D8JyW4Og,X7yK2L9MnQ3Rp
 
 # Retry all failed (reads from retry_ids.txt)
-./download.sh --retry-failed
-
-# Or manually with environment variable
-export RETRY_IDS='P3zD0D8JyW4Og,X7yK2L9MnQ3Rp'
-./download.sh
+python3 downloader.py --retry-failed
 ```
 
 ### Search Your Library
@@ -280,16 +287,35 @@ GoPro uses a unique **Media ID** for each file (e.g., `P3zD0D8JyW4Og`):
 
 - Python 3.7+
 - `requests` library (auto-installed)
+- `aiohttp` library (auto-installed) - for parallel downloads
 - GoPro subscription with cloud storage
 
-## Files
+## Project Structure
+
+```
+gopro/
+├── downloader.py       # Main entry point & orchestrator
+├── utils.py            # Formatting utilities
+├── geo.py              # GeoCache + reverse geocoding
+├── api.py              # Sync API client
+├── async_client.py     # Async parallel downloads (aiohttp)
+├── generators.py       # README/metadata generation
+├── verification.py     # Download verification
+├── download.sh         # Shell wrapper script
+├── requirements.txt    # Python dependencies
+└── .env                # Your credentials (create this)
+```
 
 | File | Description |
 |------|-------------|
-| `download.sh` | Main download script |
-| `gopro_downloader.py` | Python downloader with all features |
-| `requirements.txt` | Python dependencies |
-| `.env` | Your credentials (create this) |
+| `downloader.py` | Main orchestrator with `GoProDownloader` class |
+| `async_client.py` | Parallel downloads using aiohttp (5 concurrent) |
+| `api.py` | Synchronous GoPro API client |
+| `generators.py` | Creates README.md and metadata.json files |
+| `verification.py` | Verifies downloads and logs failures |
+| `utils.py` | Formatting helpers (time, size, duration) |
+| `geo.py` | GPS reverse geocoding with caching |
+| `download.sh` | Shell wrapper for easy usage |
 
 ## Troubleshooting
 
@@ -300,15 +326,35 @@ GoPro tokens expire. If you get 401 errors:
 2. Get fresh `gp_access_token` and `gp_user_id` from cookies
 3. Update your `.env` file
 
-### Slow Downloads
+### Download Speed
+
+Downloads use parallel connections for maximum speed:
+- **Metadata fetching**: 50 concurrent requests
+- **File downloads**: 5 concurrent downloads
+- **Chunk size**: 1MB per read
+
+To adjust concurrency, edit `async_client.py`:
+```python
+MAX_CONCURRENT_METADATA = 50   # API calls
+MAX_CONCURRENT_DOWNLOADS = 5   # File downloads
+```
+
+### Slow First Run
 
 - GPS reverse geocoding uses OpenStreetMap (1 request/second rate limit)
 - First run is slower due to geocoding; results are cached in `.geo_cache.json`
+- Subsequent runs skip geocoding for cached locations
 
 ### Missing Location Data
 
 - Some GoPro files don't have GPS data (GPS was off or indoors)
 - These files go into folders like `26/` instead of `26-Hanoi/`
+
+### Non-Source Quality
+
+Some files may download in lower quality if source isn't available:
+- Check `non_source_quality.txt` for affected files
+- Use browser URLs to manually download source quality
 
 ## License
 
