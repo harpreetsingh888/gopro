@@ -1,5 +1,7 @@
 # GoPro Cloud Downloader - Enhanced Edition
 
+![Tests](https://github.com/harpreetsingh888/gopro/actions/workflows/test.yml/badge.svg)
+
 Download your entire GoPro cloud library organized by date with rich metadata, location info, and activity tags.
 
 ## Features
