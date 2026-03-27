@@ -6,7 +6,7 @@ Download your entire GoPro cloud library organized by date with rich metadata, l
 
 ## Features
 
-- **Fast parallel downloads**: Uses aiohttp for concurrent downloads (5 simultaneous)
+- **Fast parallel downloads**: Uses aiohttp for concurrent downloads (20 simultaneous)
 - **Parallel metadata fetching**: 50 concurrent API calls for speed
 - **Smart folder structure**: `2024-Vietnam-Laos/Feb-Vietnam/26-Hanoi-BikeRide/`
 - **Max resolution selection**: Automatically selects highest available quality
@@ -17,7 +17,10 @@ Download your entire GoPro cloud library organized by date with rich metadata, l
 - **Master index**: Searchable `library_index.json` with all files
 - **Location symlinks**: `_by_location/Vietnam/Hanoi/` for browsing by place
 - **Verification**: Checks all downloads and auto-retries failed ones
-- **Resume support**: Skips already downloaded files
+- **Resume support**: Skips already downloaded files and resumes partial downloads
+- **Retry with backoff**: Failed downloads auto-retry up to 3 times with exponential backoff
+- **Per-slot progress UI**: Live progress bars for each concurrent download slot
+- **GPS data checker**: Utility to check if your GoPro cloud files have GPS data
 
 ## Quick Start
 
@@ -230,6 +233,13 @@ python3 downloader.py --retry P3zD0D8JyW4Og,X7yK2L9MnQ3Rp
 python3 downloader.py --retry-failed
 ```
 
+### Check GPS Data
+
+```bash
+# Check if your GoPro cloud files have GPS data
+python3 check_gps.py
+```
+
 ### Search Your Library
 
 ```bash
@@ -303,6 +313,7 @@ gopro/
 ├── async_client.py     # Async parallel downloads (aiohttp)
 ├── generators.py       # README/metadata generation
 ├── verification.py     # Download verification
+├── check_gps.py        # GPS data checker utility
 ├── download.sh         # Shell wrapper script
 ├── requirements.txt    # Python dependencies
 └── .env                # Your credentials (create this)
@@ -311,12 +322,13 @@ gopro/
 | File | Description |
 |------|-------------|
 | `downloader.py` | Main orchestrator with `GoProDownloader` class |
-| `async_client.py` | Parallel downloads using aiohttp (5 concurrent) |
+| `async_client.py` | Parallel downloads using aiohttp (20 concurrent) with retry, resume, and per-slot progress |
 | `api.py` | Synchronous GoPro API client |
 | `generators.py` | Creates README.md and metadata.json files |
 | `verification.py` | Verifies downloads and logs failures |
 | `utils.py` | Formatting helpers (time, size, duration) |
 | `geo.py` | GPS reverse geocoding with caching |
+| `check_gps.py` | Checks if GoPro cloud files have GPS data |
 | `download.sh` | Shell wrapper for easy usage |
 
 ## Troubleshooting
@@ -332,13 +344,17 @@ GoPro tokens expire. If you get 401 errors:
 
 Downloads use parallel connections for maximum speed:
 - **Metadata fetching**: 50 concurrent requests
-- **File downloads**: 5 concurrent downloads
+- **File downloads**: 20 concurrent downloads
 - **Chunk size**: 1MB per read
+- **Retry**: Up to 3 attempts per file with exponential backoff (2s, 4s, 8s)
+- **Resume**: Partial downloads resume from where they left off using HTTP Range headers
 
 To adjust concurrency, edit `async_client.py`:
 ```python
 MAX_CONCURRENT_METADATA = 50   # API calls
-MAX_CONCURRENT_DOWNLOADS = 5   # File downloads
+MAX_CONCURRENT_DOWNLOADS = 20  # File downloads
+MAX_RETRIES = 3                # Retry attempts per file
+RETRY_DELAY = 2                # Base delay in seconds (exponential backoff)
 ```
 
 ### Slow First Run
@@ -351,6 +367,7 @@ MAX_CONCURRENT_DOWNLOADS = 5   # File downloads
 
 - Some GoPro files don't have GPS data (GPS was off or indoors)
 - These files go into folders like `26/` instead of `26-Hanoi/`
+- Run `python3 check_gps.py` to check which files have GPS data
 
 ### Non-Source Quality
 
