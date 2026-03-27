@@ -22,7 +22,7 @@ def test_async_client_concurrency_settings():
         client = AsyncGoProClient("test_token", "test_user", Path(tmpdir))
 
         assert client.MAX_CONCURRENT_METADATA == 50
-        assert client.MAX_CONCURRENT_DOWNLOADS == 5
+        assert client.MAX_CONCURRENT_DOWNLOADS == 20
         assert client.DOWNLOAD_CHUNK_SIZE == 1024 * 1024
 
 
